@@ -1,0 +1,30 @@
+[project]
+name = "a4-printer-interface"
+version = "0.1.0"
+description = "A small cross-platform Python interface for A4 printers"
+authors = [
+    {name = "GGN_2015", email = "neko@jlulug.org"}
+]
+license = "MIT"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "Pillow",
+    "pypdfium2",
+    "reportlab",
+    "pywin32==312; sys_platform == 'win32'",
+]
+
+[project.scripts]
+a4-printers = "a4_printer_interface.main:main"
+
+[tool.setuptools.packages.find]
+include = ["a4_printer_interface*"]
+
+[tool.setuptools.package-data]
+a4_printer_interface = ["assets/*.pdf"]
+
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
