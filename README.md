@@ -14,9 +14,9 @@ The source PDF is never modified. PDFium renders each page at 300 DPI so that
 layout and grayscale results do not depend on a desktop PDF viewer.
 
 Images are EXIF-orientation aware and become a temporary, single-page portrait A4
-PDF before printing. Landscape images are rotated, then the image is scaled and
-center-cropped to cover the A4 canvas without an added white border. Multi-frame
-images use their first frame.
+PDF before printing. Images are rotated so their long edge matches the long edge
+of the paper, then scaled as large as possible while fitting entirely within the
+A4 canvas and centered on it. Multi-frame images use their first frame.
 
 ## Requirements
 

@@ -428,12 +428,20 @@ def _render_image_a4_page(path: Path, color_mode: ColorMode) -> Image.Image:
             portrait = prepared.transpose(Image.Transpose.ROTATE_90)
             prepared.close()
             prepared = portrait
-        return ImageOps.fit(
-            prepared,
-            _A4_PIXELS,
-            method=Image.Resampling.LANCZOS,
-            centering=(0.5, 0.5),
+        scale = min(_A4_PIXELS[0] / prepared.width, _A4_PIXELS[1] / prepared.height)
+        fitted_size = (
+            max(1, round(prepared.width * scale)),
+            max(1, round(prepared.height * scale)),
         )
+        fitted = prepared.resize(fitted_size, Image.Resampling.LANCZOS)
+        a4_page = Image.new(output_mode, _A4_PIXELS, "white")
+        offset = (
+            (_A4_PIXELS[0] - fitted_size[0]) // 2,
+            (_A4_PIXELS[1] - fitted_size[1]) // 2,
+        )
+        a4_page.paste(fitted, offset)
+        fitted.close()
+        return a4_page
     finally:
         prepared.close()
 

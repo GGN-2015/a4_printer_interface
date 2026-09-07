@@ -294,7 +294,7 @@ class ImageNormalizationTests(unittest.TestCase):
     def tearDown(self):
         self.temporary_directory.cleanup()
 
-    def test_image_becomes_one_borderless_portrait_a4_page(self):
+    def test_image_is_contained_and_centered_on_portrait_a4(self):
         source = self.directory / "landscape.png"
         output = self.directory / "normalized.pdf"
         Image.new("RGB", (1600, 900), (230, 20, 30)).save(source)
@@ -312,14 +312,24 @@ class ImageNormalizationTests(unittest.TestCase):
             try:
                 image = bitmap.to_pil().convert("RGB")
                 for point in (
-                    (2, 2),
+                    (width // 2, 5),
                     (width // 2, height // 2),
-                    (width - 3, height - 3),
+                    (width // 2, height - 6),
                 ):
                     red, green, blue = image.getpixel(tuple(map(round, point)))
                     self.assertGreater(red, 180)
                     self.assertLess(green, 60)
                     self.assertLess(blue, 70)
+                for point in (
+                    (3, 3),
+                    (3, height // 2),
+                    (width - 4, height // 2),
+                    (width - 4, height - 4),
+                ):
+                    red, green, blue = image.getpixel(tuple(map(round, point)))
+                    self.assertGreater(red, 200)
+                    self.assertGreater(green, 200)
+                    self.assertGreater(blue, 200)
             finally:
                 bitmap.close()
         finally:
