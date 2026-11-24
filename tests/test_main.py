@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 import pypdfium2 as pdfium
-from PIL import Image
+from PIL import Image, ImageChops, ImageWin
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
@@ -383,6 +383,75 @@ class BuiltInTestPageTests(unittest.TestCase):
 
 
 class BackendTests(unittest.TestCase):
+    @mock.patch.object(printer_module.shutil, "which", return_value="/usr/bin/lp")
+    @mock.patch.object(printer_module, "_run_command")
+    def test_cups_test_page_submits_a_pdf_in_the_requested_color_mode(
+        self, run_command, _which
+    ):
+        printer = printer_module._make_printer("Office", "Office", "cups")
+
+        def inspect_submission(command, **_kwargs):
+            path = Path(command[-1])
+            self.assertIn(f"print-color-mode={ipp_mode}", command)
+            self.assertEqual(b"/DeviceGray" in path.read_bytes(), monochrome)
+            with pdfium.PdfDocument(str(path)) as document:
+                self.assertEqual(len(document), 1)
+                page = document[0]
+                bitmap = page.render(scale=0.5)
+                try:
+                    with bitmap.to_pil().convert("RGB") as image:
+                        red, green, blue = image.split()
+                        chromatic = (
+                            ImageChops.difference(red, green).getbbox() is not None
+                            or ImageChops.difference(green, blue).getbbox() is not None
+                        )
+                        self.assertEqual(chromatic, not monochrome)
+                        low, high = red.getextrema()
+                        self.assertLess(low, 100)
+                        self.assertGreater(high, 240)
+                finally:
+                    bitmap.close()
+                    page.close()
+            return completed(command, stdout="request id is Office-1")
+
+        run_command.side_effect = inspect_submission
+        for settings, ipp_mode in (
+            (DefaultSettings(), "color"),
+            (GrayscaleSettings(), "monochrome"),
+        ):
+            with self.subTest(ipp_mode=ipp_mode):
+                monochrome = ipp_mode == "monochrome"
+                run_command.reset_mock()
+                printer.print_test_page(settings)
+                run_command.assert_called_once()
+
+    @mock.patch.object(printer_module, "_windows_devmode")
+    @mock.patch.object(ImageWin, "Dib")
+    def test_windows_test_page_sends_grayscale_pixels_to_gdi(self, dib, devmode):
+        printer = printer_module._make_printer("Office", "Office", "windows")
+        dc = mock.Mock()
+        dc.GetDeviceCaps.return_value = 1000
+        modules = {
+            "win32con": SimpleNamespace(HORZRES=8, VERTRES=10),
+            "win32gui": SimpleNamespace(CreateDC=mock.Mock()),
+            "win32ui": SimpleNamespace(CreateDCFromHandle=mock.Mock(return_value=dc)),
+        }
+
+        def inspect_pixels(page):
+            self.assertEqual(page.mode, "L")
+            low, high = page.getextrema()
+            self.assertLess(low, 100)
+            self.assertGreater(high, 240)
+            return mock.Mock()
+
+        dib.side_effect = inspect_pixels
+        with mock.patch.dict(sys.modules, modules):
+            printer.print_test_page(GrayscaleSettings())
+
+        devmode.assert_called_once_with("Office", ColorMode.GREY_SCALE)
+        dib.assert_called_once()
+        dc.EndDoc.assert_called_once()
+
     @mock.patch.object(printer_module.shutil, "which", return_value="/usr/bin/lpstat")
     @mock.patch.object(printer_module, "_run_command")
     def test_cups_reports_only_an_actively_printing_queue_as_busy(

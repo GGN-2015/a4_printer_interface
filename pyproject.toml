@@ -1,6 +1,6 @@
 [project]
 name = "a4-printer-interface"
-version = "0.1.1"
+version = "0.1.2"
 description = "A small cross-platform Python interface for A4 printers"
 authors = [
     {name = "GGN_2015", email = "neko@jlulug.org"}
